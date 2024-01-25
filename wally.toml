@@ -1,6 +1,6 @@
 [package]
 name = "blackferrari2/modularanimate"
-version = "1.0.5"
+version = "1.0.6"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "a rewrite of roblox's animate script"

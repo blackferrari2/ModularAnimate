@@ -101,18 +101,19 @@ function PoseController.connect(self: PoseController)
         end
 
         if isJumping then
-            local isCancelled = false
+            local thread
             local connection = self.humanoid.StateChanged:Once(function()
-                isCancelled = true
+                task.cancel(thread)
             end)
 
-            task.wait(jumpConfig.duration)
+            thread = task.spawn(function()
+                task.wait(jumpConfig.duration)
 
-            if isCancelled then
-                return
-            end
+                connection:Disconnect()
+                self:change(PoseController.Poses.Fall)
+            end)
 
-            connection:Disconnect()
+            return
         end
 
         self:change(PoseController.Poses.Fall)
