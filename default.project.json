@@ -1,7 +1,21 @@
 {
-	"name": "ModularAnimate",
+	"name": "ModularAnimate-test",
 	
 	"tree": {
-		"$path": "src"
+		"$className": "DataModel",
+
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+
+			"Packages": {
+				"$path": "Packages",
+				"$ignoreUnknownInstances": true,
+
+				"ModularAnimate": {
+					"$path": "final.project.json",
+					"$ignoreUnknownInstances": true
+				}
+			}
+		}
 	}
 }

@@ -2,7 +2,6 @@ local packages = script.Parent.Parent
 
 local Signal = require(packages.Signal)
 local PoseController = require(script.Parent.PoseController)
-local Config = require(script.Parent.Config)
 
 local AnimationHandler = {}
 AnimationHandler.__index = AnimationHandler
@@ -13,7 +12,7 @@ type self = {
     current: AnimationTrack,
     animator: Animator,
     poseController: PoseController.PoseController,
-    configsTable: {[PoseController.Pose]: Config.Config},
+    configs: PoseController.Configs,
     animationTracks: {[PoseController.Pose]: AnimationTrack},
     connections: {Signal.Connection},
     cache: {Signal.Connection},
@@ -33,12 +32,12 @@ end
 
 ---------------
 
-function AnimationHandler.new(animator: Animator, poseController: PoseController.PoseController, configsTable: {[PoseController.Pose]: Config.Config}): AnimationHandler
+function AnimationHandler.new(animator: Animator, poseController: PoseController.PoseController, configs: PoseController.Configs): AnimationHandler
     local self = {
         current = nil,
         animator = animator,
         poseController = poseController,
-        configsTable = configsTable,
+        configs = configs,
         animationTracks = {},
         connections = {},
         cache = {},
@@ -61,10 +60,17 @@ function AnimationHandler.connect(self: AnimationHandler)
     self:_handle(PoseController.Poses.Idle)
 
     local humanoid = poseController.humanoid
+    local originalSpeed = humanoid.WalkSpeed
+
+    local function getAnimationSpeed(currentSpeed: number): number
+        return currentSpeed / originalSpeed
+    end
 
     self:_handle(PoseController.Poses.Climb, function()
         local track = self.current
         local config = self:getConfig(PoseController.Poses.Climb)
+
+        track:AdjustSpeed(config.speed * getAnimationSpeed(poseController.climbingSpeed))
 
         local updateSpeedConnection = humanoid.Climbing:Connect(function(speed)
             track:AdjustSpeed(config.speed * (speed / 12))
@@ -76,27 +82,21 @@ function AnimationHandler.connect(self: AnimationHandler)
         end))
     end)
 
-    do
-        local originalSpeed = humanoid.WalkSpeed
+    self:_handle(PoseController.Poses.Walk, function()
+        local track = self.current
+        local config = self:getConfig(PoseController.Poses.Walk)
 
-        local function getAnimationSpeed(currentSpeed: number): number
-            return currentSpeed / originalSpeed
-        end
-    
-        self:_handle(PoseController.Poses.Walk, function()
-            local track = self.current
-            local config = self:getConfig(PoseController.Poses.Walk)
-    
-            local updateSpeedConnection = humanoid.Running:Connect(function(speed)
-                track:AdjustSpeed(config.speed * getAnimationSpeed(speed))
-            end)
+        track:AdjustSpeed(config.speed * getAnimationSpeed(poseController.walkingSpeed))
 
-            self:_addCache(updateSpeedConnection)
-            self:_addCache(poseController.changed:Once(function()
-                self:_clearCache()
-            end))
+        local updateSpeedConnection = humanoid.Running:Connect(function(speed)
+            track:AdjustSpeed(config.speed * getAnimationSpeed(speed))
         end)
-    end
+
+        self:_addCache(updateSpeedConnection)
+        self:_addCache(poseController.changed:Once(function()
+            self:_clearCache()
+        end))
+    end)
 
     -- play animation of current pose by TRICKING the connect into idk doing the the event thing whatever i dont Care it works
     -- sorry for the gotcha im so tired
@@ -118,7 +118,7 @@ function AnimationHandler.disconnect(self: AnimationHandler)
 end
 
 function AnimationHandler.getConfig(self: AnimationHandler, of: PoseController.Pose)
-    return self.configsTable[of]
+    return self.configs[of]
 end
 
 function AnimationHandler.getAnimationTrack(self: AnimationHandler, of: PoseController.Pose)
@@ -179,7 +179,7 @@ function AnimationHandler._play(self: AnimationHandler, pose: PoseController.Pos
 end
 
 function AnimationHandler._refreshAnimationTracks(self: AnimationHandler)
-    for pose, config in pairs(self.configsTable) do
+    for pose, config in pairs(self.configs) do
         local animation = getAnimationFrom(config.id)
 
         if self.animationTracks[pose] then

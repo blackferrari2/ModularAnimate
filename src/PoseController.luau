@@ -23,22 +23,27 @@ type self = {
     humanoid: Humanoid,
     current: Pose,
     changed: Signal.Signal<Pose>,
-    configsTable: {[Pose]: Config.Config},
+    configs: {[Pose]: Config.Config},
     connections: {RBXScriptConnection},
+    climbingSpeed: number,
+    walkingSpeed: number,
 }
 
 export type Pose = "Idle" | "Walk" | "Jump" | "Fall" | "Sit" | "Climb"
+export type Configs = {[Pose]: Config.Config}
 export type PoseController = typeof(setmetatable({} :: self, PoseController))
 
 ---------------
 
-function PoseController.new(humanoid: Humanoid, configsTable: {[Pose]: Config.Config}): PoseController
+function PoseController.new(humanoid: Humanoid, configs: Configs): PoseController
     local self = {
         humanoid = humanoid,
         current = PoseController.Poses.Idle,
         changed = Signal.new(),
-        configsTable = configsTable,
+        configs = configs,
         connections = {},
+        climbingSpeed = 0,
+        walkingSpeed = 0,
     }
 
     setmetatable(self, PoseController)
@@ -65,6 +70,7 @@ function PoseController.connect(self: PoseController)
             return
         end
 
+        self.walkingSpeed = 0
         self:change(PoseController.Poses.Idle)
     end))
 
@@ -73,6 +79,7 @@ function PoseController.connect(self: PoseController)
             return
         end
 
+        self.walkingSpeed = speed
         self:change(PoseController.Poses.Walk)
     end))
 
@@ -87,7 +94,7 @@ function PoseController.connect(self: PoseController)
         isJumping = true
     end))
 
-    local jumpConfig = self.configsTable[PoseController.Poses.Jump]
+    local jumpConfig = self.configs[PoseController.Poses.Jump]
 
     self:_addConnection(self.humanoid.StateChanged:Connect(function(_, newState)
         if newState ~= Enum.HumanoidStateType.Freefall then
@@ -136,6 +143,7 @@ function PoseController.connect(self: PoseController)
     end))
 
     self:_addConnection(self.humanoid.Climbing:Connect(function(speed)
+        self.climbingSpeed = speed
         self:change(PoseController.Poses.Climb)
     end))
 end
