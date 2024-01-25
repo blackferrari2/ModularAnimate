@@ -1,6 +1,6 @@
 [package]
 name = "blackferrari2/modularanimate"
-version = "1.0.0"
+version = "1.0.1"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "a rewrite of roblox's animate script"
@@ -8,8 +8,7 @@ description = "a rewrite of roblox's animate script"
 exclude = [
     "aftman.toml", 
     "README.md",
-    "test.project.json",
-    "default.project.json"
+    "test.project.json"
 ]
 
 [dependencies]
