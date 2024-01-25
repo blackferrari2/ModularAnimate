@@ -122,6 +122,12 @@ function ModularAnimate._new(humanoid: Humanoid, animator: Animator, configs: Po
 
     for _, pose in pairs(PoseController.Poses) do
         local config = configs[pose]
+
+        if not config then
+            config = ModularAnimate.DefaultConfigs[pose]
+            configs[pose] = config
+        end
+
         assert(t.literal(Config)(getmetatable(config)), "value of configs not a config")
     end
 
