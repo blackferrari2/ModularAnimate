@@ -5,7 +5,6 @@ local Config = require(script.Parent.Config)
 
 local PoseController = {
     Poses = {
-        None = "None",
         Idle = "Idle",
         Walk = "Walk",
         Jump = "Jump",
