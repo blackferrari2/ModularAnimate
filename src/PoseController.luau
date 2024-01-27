@@ -93,12 +93,12 @@ function PoseController.connect(self: PoseController)
         isJumping = true
     end))
 
-    local jumpConfig = self.configs[PoseController.Poses.Jump]
-
     self:_addConnection(self.humanoid.StateChanged:Connect(function(_, newState)
         if newState ~= Enum.HumanoidStateType.Freefall then
             return
         end
+
+        local jumpConfig = self.configs[PoseController.Poses.Jump]
 
         if isJumping then
             local thread

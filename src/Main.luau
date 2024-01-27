@@ -76,30 +76,11 @@ function ModularAnimate.disconnect(self: ModularAnimate)
     self.humanoidDeathCleanupConnection:Disconnect()
 end
 
+function ModularAnimate.modify(self: ModularAnimate, pose: PoseController.Pose, newConfig: Config.Config)
+    assert(t.keyOf(PoseController.Poses)(pose), "pose not a pose.")
+    assert(t.literal(Config)(getmetatable(newConfig)), "configs not a config")
 
---[[
-    changes animation data
-
-    example code:
-
-    ```lua
-    main:modify(function()
-        local config = main:getConfig(animate.Poses.Walk)
-        
-        config.id = "rbxassetid://10353567659"
-        config.speed = 3
-        
-        local config2 = main:getConfig(animate.Poses.Jump)
-
-        config2.id = "rbxassetid://10353567659"
-        config2.duration = 10
-    end)
-    ```
-]]
-function ModularAnimate.modify(self: ModularAnimate, changes: () -> ())
-    assert(t.callback(changes))
-
-    changes()
+    self.configs[pose] = newConfig
     self:_refresh()
 end
 
