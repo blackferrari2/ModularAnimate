@@ -1,10 +1,12 @@
+local Poses = require(script.Parent.Poses)
+
 local Config = {}
 Config.__index = Config
 
 ---------------
 
 type self = {
-    id: string,
+    id: string?,
     weight: number,
     priority: Enum.AnimationPriority,
     transitionTime: number,
@@ -13,12 +15,12 @@ type self = {
 }
 
 export type Config = typeof(setmetatable({} :: self, Config))
+export type ConfigMap = {[Poses.Pose]: Config}
 
 ---------------
 
-function Config.new(id: string): Config
+function Config.new(): Config
     local self = {
-        id = id,
         weight = 10,
         priority = Enum.AnimationPriority.Core,
         transitionTime = 0.1,
@@ -31,14 +33,34 @@ function Config.new(id: string): Config
     return self
 end
 
-function Config.copy(self: Config): Config
-    local new = Config.new(self.id)
+function Config.clone(self: Config): Config
+    local new = Config.new()
 
     for key, value in pairs(self) do
         new[key] = value
     end
 
     return new
+end
+
+--
+
+function Config.createConfigMap(): ConfigMap
+    local map = {}
+
+    for _, pose in pairs(Poses.Them) do
+        map[pose] = Config.new()
+    end
+
+    return map
+end
+
+function Config.replaceConfigFromMap(configMap: ConfigMap, pose: Poses.Pose, new: Config)
+    configMap[pose] = new
+end
+
+function Config.getConfigFromMap(configMap: ConfigMap, pose: Poses.Pose): Config
+    return configMap[pose]
 end
 
 ---------------

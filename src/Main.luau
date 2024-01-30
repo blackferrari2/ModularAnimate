@@ -1,128 +1,52 @@
-local packages = script.Parent.Parent
+local src = script.Parent
 
-local t = require(packages.t)
-local Config = require(script.Parent.Config)
-local PoseController = require(script.Parent.PoseController)
-local AnimationHandler = require(script.Parent.AnimationHandler)
+local Config = require(src.Config)
+local Poses = require(src.Poses)
+local PoseController = require(src.Handlers.PoseController)
+local AnimationPlayer = require(src.Handlers.AnimationPlayer)
 
 local ModularAnimate = {
-    DefaultConfigs = {
-        [PoseController.Poses.Idle] = Config.new("rbxassetid://180435571"),
-        [PoseController.Poses.Walk] = Config.new("rbxassetid://180426354"),
-        [PoseController.Poses.Jump] = Config.new("rbxassetid://125750702"),
-        [PoseController.Poses.Fall] = Config.new("rbxassetid://180436148"),
-        [PoseController.Poses.Sit] = Config.new("rbxassetid://178130996"),
-        [PoseController.Poses.Climb] = Config.new("rbxassetid://180436334"),
-    },
+    DefaultConfigs = Config.createConfigMap(),
+
+    DefaultIDs = {
+        [Enum.HumanoidRigType.R6] = {
+            [Poses.Them.Idle] = "rbxassetid://180435571",
+            [Poses.Them.Walk] = "rbxassetid://180426354",
+            [Poses.Them.Jump] = "rbxassetid://125750702",
+            [Poses.Them.Fall] = "rbxassetid://180436148",
+            [Poses.Them.Sit] = "rbxassetid://178130996",
+            [Poses.Them.Climb] = "rbxassetid://180436334",
+        },
+    }
 }
 
-ModularAnimate.__index = ModularAnimate
-
 -- special settings
-ModularAnimate.DefaultConfigs[PoseController.Poses.Idle].weight = 9
-ModularAnimate.DefaultConfigs[PoseController.Poses.Fall].transitionTime = 0.3
-ModularAnimate.DefaultConfigs[PoseController.Poses.Jump].duration = 0.3
+Config.getConfigFromMap(ModularAnimate.DefaultConfigs, Poses.Them.Idle).weight = 9
+Config.getConfigFromMap(ModularAnimate.DefaultConfigs, Poses.Them.Fall).transitionTime = 0.3
+Config.getConfigFromMap(ModularAnimate.DefaultConfigs, Poses.Them.Jump).duration = 0.3
+
+ModularAnimate.__index = ModularAnimate
 
 ---------------
 
 type self = {
-    poseController: PoseController.PoseController,
-    animationHandler: AnimationHandler.AnimationHandler,
-    configs: PoseController.Configs,
-    isActive: boolean,
-    humanoidDeathCleanupConnection: RBXScriptConnection, 
+    configMap: Config.ConfigMap,
+    poseController: PoseController.PoseController?,
+    animationPlayer: AnimationPlayer.AnimationPlayer?,
+    humanoidDeathCleanupConnection: RBXScriptConnection?,
 }
 
 export type ModularAnimate = typeof(setmetatable({} :: self, ModularAnimate))
 
 ---------------
 
-local ERROR_INVALID_CONFIG = "config %s doesnt exist"
-
---
-
-local function copyConfigs(from: PoseController.Configs): PoseController.Configs
-    local new = {}
-
-    for pose, config in pairs(from) do
-        new[pose] = config:copy()
-    end
-
-    return new
-end
+local ERROR_RIG_NOT_SUPPORTED = "%s Rigs arent supported."
 
 ---------------
 
-function ModularAnimate.new(humanoid: Humanoid, animator: Animator): ModularAnimate
-    return ModularAnimate._new(humanoid, animator, ModularAnimate.DefaultConfigs)
-end
-
-function ModularAnimate.fromConfigs(humanoid: Humanoid, animator: Animator, configs: PoseController.Configs): ModularAnimate
-    return ModularAnimate._new(humanoid, animator, configs)
-end
-
-function ModularAnimate.connect(self: ModularAnimate)
-    self.poseController:connect()
-    self.animationHandler:connect()
-
-    self.humanoidDeathCleanupConnection = self.poseController.humanoid.Died:Connect(function()
-        self:disconnect()
-    end)
-end
-
-function ModularAnimate.disconnect(self: ModularAnimate)
-    self.poseController:disconnect()
-    self.animationHandler:disconnect()
-    self.humanoidDeathCleanupConnection:Disconnect()
-end
-
-function ModularAnimate.modify(self: ModularAnimate, pose: PoseController.Pose, newConfig: Config.Config)
-    assert(t.keyOf(PoseController.Poses)(pose), "pose not a pose.")
-    assert(t.literal(Config)(getmetatable(newConfig)), "configs not a config")
-
-    self.configs[pose] = newConfig
-    self:_refresh()
-end
-
-function ModularAnimate.getConfig(self: ModularAnimate, of: PoseController.Pose): Config.Config
-    local config = self.configs[of]
-
-    if not config then
-        error(string.format(ERROR_INVALID_CONFIG, of))
-    end
-
-    return config
-end
-
---
-
-function ModularAnimate._new(humanoid: Humanoid, animator: Animator, configs: PoseController.Configs): ModularAnimate
-    assert(t.instanceOf("Humanoid")(humanoid))
-    assert(t.instanceOf("Animator")(animator))
-    assert(t.keys(t.keyOf(PoseController.Poses))(configs), "key of configs not a pose.")
-
-    for _, pose in pairs(PoseController.Poses) do
-        local config = configs[pose]
-
-        if not config then
-            config = ModularAnimate.DefaultConfigs[pose]
-            configs[pose] = config
-        end
-
-        assert(t.literal(Config)(getmetatable(config)), "value of configs not a config")
-    end
-
-    configs = copyConfigs(configs)
-
-    local poseController = PoseController.new(humanoid, configs)
-    local animationHandler = AnimationHandler.new(animator, poseController, configs)
-
+function ModularAnimate.new(customConfigMap: Config.ConfigMap?): ModularAnimate
     local self = {
-        poseController = poseController,
-        animationHandler = animationHandler,
-        configs = configs,
-        isActive = false,
-        humanoidDeathCleanupConnection = nil,
+        configMap = customConfigMap or ModularAnimate.DefaultConfigs,
     }
 
     setmetatable(self, ModularAnimate)
@@ -130,11 +54,88 @@ function ModularAnimate._new(humanoid: Humanoid, animator: Animator, configs: Po
     return self
 end
 
-function ModularAnimate._refresh(self: ModularAnimate)
-    self.poseController:disconnect()
-    self.poseController:connect()
-    self.animationHandler:disconnect()
-    self.animationHandler:connect()
+function ModularAnimate.animate(self: ModularAnimate, humanoid: Humanoid, animator: Animator)
+    if self.poseController then
+        return
+    end
+
+    for pose, config in pairs(self.configMap) do
+        if config.id then
+            continue
+        end
+
+        local defaultIDs = ModularAnimate.DefaultIDs[humanoid.RigType]
+
+        if not defaultIDs then
+            error(string.format(ERROR_RIG_NOT_SUPPORTED, humanoid.RigType.Name))
+        end
+
+        config.id = defaultIDs[pose]
+    end
+
+    local poseController = PoseController.new(humanoid, self.configMap)
+    local animationPlayer = AnimationPlayer.new(animator, poseController, self.configMap)
+
+    poseController:connect()
+    animationPlayer:connect()
+
+    self.poseController = poseController
+    self.animationPlayer = animationPlayer
+    self.humanoidDeathCleanupConnection = humanoid.Died:Once(function()
+        self:destroy()
+    end)
+end
+
+function ModularAnimate.modify(self: ModularAnimate, pose: Poses.Pose, newConfig: Config.Config)
+    Config.replaceConfigFromMap(self.configMap, pose, newConfig)
+
+    if not self.poseController or not self.animationPlayer then
+        return
+    end
+
+    self.animationPlayer:stop()
+    
+    local currentPose = self.poseController.currentPose
+
+    self.animationPlayer:play(currentPose)
+
+    local currentAnimationTrack = self.animationPlayer.currentAnimationTrack
+    local speed
+
+    if currentPose == Poses.Them.Walk then
+        speed = self.animationPlayer:getAnimationSpeedRelativeToWalkSpeed(self.poseController.cache.walkingSpeed)
+    elseif currentPose == Poses.Them.Climb then
+        speed = self.poseController.cache.climbingSpeed / 12
+    end
+
+    -- Yea you just gotta do that..
+    if speed then
+        currentAnimationTrack:AdjustSpeed(newConfig.speed * speed)
+    end
+end
+
+function ModularAnimate.stop(self: ModularAnimate)
+    if not self.poseController or not self.animationPlayer or not self.humanoidDeathCleanupConnection then
+        return
+    end
+
+    self.poseController:destroy()
+    self.animationPlayer:destroy()
+    self.humanoidDeathCleanupConnection:Disconnect()
+    self.poseController = nil
+    self.animationPlayer = nil
+    self.humanoidDeathCleanupConnection = nil
+end
+
+function ModularAnimate.destroy(self: ModularAnimate)
+    self:stop()
+
+    local setmetatable: any = setmetatable
+    setmetatable(self, nil)
+end
+
+function ModularAnimate.getConfig(self: ModularAnimate, of: Poses.Pose): Config.Config
+    return Config.getConfigFromMap(self.configMap, of):clone()
 end
 
 ---------------
