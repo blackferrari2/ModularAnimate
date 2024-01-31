@@ -90,8 +90,8 @@ PoseController.Handlers[Poses.Them.Jump] = function(self: PoseController): RBXSc
             return
         end
 
-        self:switch(Poses.Them.Jump)
         self.cache.isJumping = true
+        self:switch(Poses.Them.Jump)
     end)
 
     return connection

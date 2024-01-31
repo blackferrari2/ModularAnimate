@@ -92,25 +92,26 @@ function ModularAnimate.modify(self: ModularAnimate, pose: Poses.Pose, newConfig
     if not self.poseController or not self.animationPlayer then
         return
     end
-
-    self.animationPlayer:stop()
     
     local currentPose = self.poseController.currentPose
 
-    self.animationPlayer:play(currentPose)
+    -- we only need to adjust animations that might already be playing.. wow
+    if pose == currentPose then
+        self.animationPlayer:play(currentPose)
 
-    local currentAnimationTrack = self.animationPlayer.currentAnimationTrack
-    local speed
+        local currentAnimationTrack = self.animationPlayer.currentAnimationTrack
+        local speed
 
-    if currentPose == Poses.Them.Walk then
-        speed = self.animationPlayer:getAnimationSpeedRelativeToWalkSpeed(self.poseController.cache.walkingSpeed)
-    elseif currentPose == Poses.Them.Climb then
-        speed = self.poseController.cache.climbingSpeed / 12
-    end
+        if currentPose == Poses.Them.Walk then
+            speed = self.animationPlayer:getAnimationSpeedRelativeToWalkSpeed(self.poseController.cache.walkingSpeed)
+        elseif currentPose == Poses.Them.Climb then
+            speed = self.poseController.cache.climbingSpeed / 12
+        end
 
-    -- Yea you just gotta do that..
-    if speed then
-        currentAnimationTrack:AdjustSpeed(newConfig.speed * speed)
+        -- Yea you just gotta do that..
+        if speed then
+            currentAnimationTrack:AdjustSpeed(newConfig.speed * speed)
+        end
     end
 end
 
