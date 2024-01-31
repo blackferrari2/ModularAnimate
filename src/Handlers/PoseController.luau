@@ -108,6 +108,7 @@ PoseController.Handlers[Poses.Them.Fall] = function(self: PoseController): RBXSc
         if self.cache.isJumping then
             local thread
             local connection = self.humanoid.StateChanged:Once(function()
+                self.cache.isJumping = false
                 task.cancel(thread)
             end)
 
