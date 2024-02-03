@@ -85,8 +85,8 @@ PoseController.Handlers[Poses.Them.Walk] = function(self: PoseController): RBXSc
 end
 
 PoseController.Handlers[Poses.Them.Jump] = function(self: PoseController): RBXScriptConnection
-    local connection = self.humanoid.Jumping:Connect(function(active)
-        if not active then
+    local connection = self.humanoid.StateChanged:Connect(function(_, newState)
+        if newState ~= Enum.HumanoidStateType.Jumping then
             return
         end
 
